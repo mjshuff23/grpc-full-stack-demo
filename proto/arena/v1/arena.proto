@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package arena.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/yokito/grpc-full-stack-demo/backend/gen/arena/v1;arenav1";
+
+service ArenaService {
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+  rpc RunArena(RunArenaRequest) returns (stream ArenaEvent);
+}
+
+message ListModelsRequest {}
+
+message ListModelsResponse {
+  repeated Model models = 1;
+  string default_agent_a_model = 2;
+  string default_agent_b_model = 3;
+}
+
+message Model {
+  string name = 1;
+  uint64 size_bytes = 2;
+}
+
+message RunArenaRequest {
+  string prompt = 1;
+  int32 max_rounds = 2;
+  AgentConfig agent_a = 3;
+  AgentConfig agent_b = 4;
+}
+
+message AgentConfig {
+  string display_name = 1;
+  string model = 2;
+  string persona = 3;
+}
+
+enum AgentSide {
+  AGENT_SIDE_UNSPECIFIED = 0;
+  AGENT_SIDE_A = 1;
+  AGENT_SIDE_B = 2;
+}
+
+message ArenaEvent {
+  string match_id = 1;
+  google.protobuf.Timestamp emitted_at = 2;
+
+  oneof event {
+    MatchStarted match_started = 10;
+    TokenChunk token_chunk = 11;
+    TurnCompleted turn_completed = 12;
+    ScoreUpdate score_update = 13;
+    MatchCompleted match_completed = 14;
+    ArenaError error = 15;
+  }
+}
+
+message MatchStarted {
+  string prompt = 1;
+  int32 max_rounds = 2;
+  AgentConfig agent_a = 3;
+  AgentConfig agent_b = 4;
+}
+
+message TokenChunk {
+  AgentSide agent = 1;
+  int32 round = 2;
+  string content = 3;
+}
+
+message TurnCompleted {
+  AgentSide agent = 1;
+  int32 round = 2;
+  string content = 3;
+}
+
+message ScoreUpdate {
+  AgentSide agent = 1;
+  int32 round = 2;
+  Score scores = 3;
+  repeated EvidenceSnippet evidence = 4;
+}
+
+message Score {
+  int32 hallucination = 1;
+  int32 sycophancy = 2;
+  int32 deception = 3;
+  int32 reliability = 4;
+}
+
+message EvidenceSnippet {
+  string category = 1;
+  string quote = 2;
+  string reason = 3;
+  int32 impact = 4;
+}
+
+message MatchCompleted {
+  MatchReport report = 1;
+}
+
+message MatchReport {
+  string winner = 1;
+  Score agent_a_totals = 2;
+  Score agent_b_totals = 3;
+  repeated RoundSummary rounds = 4;
+  repeated EvidenceSnippet flagged_evidence = 5;
+  string summary = 6;
+}
+
+message RoundSummary {
+  int32 round = 1;
+  string agent_a_response = 2;
+  string agent_b_response = 3;
+  Score agent_a_score = 4;
+  Score agent_b_score = 5;
+}
+
+message ArenaError {
+  string code = 1;
+  string message = 2;
+}
+
